@@ -12,6 +12,9 @@ WireGuard encryption stays in WireGuard peers.
 `wg2awg` only transforms packet type fields, padding,
 and junk/CPS traffic patterns.
 
+wg2awg is derived from amneziawg-mikrotik-c by timbrs:
+<https://github.com/timbrs/amneziawg-mikrotik-c>
+
 ## Scope
 
 * Runtime target: Linux.
