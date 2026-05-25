@@ -113,13 +113,24 @@ Profile is selected automatically from effective settings:
 * v1.5: no v2 markers, but any `I1..I5` CPS template is set.
 * v1: none of the above.
 
-## Release Artifacts and Installation Options
+## Release Artifacts and Installation
 
+[Latest release page](https://github.com/WoozyMasta/wg2awg/releases/latest).
 Releases provide three artifact families per architecture:
 
 * Static Linux binary: `wg2awg-<arch>`.
 * OCI archive: `wg2awg-<arch>-oci.tar.gz`.
 * Docker archive: `wg2awg-<arch>-docker.tar.gz`.
+
+Container registries:
+
+* GHCR: <https://github.com/WoozyMasta/wg2awg/pkgs/container/wg2awg>
+* Docker Hub: <https://hub.docker.com/r/woozymasta/wg2awg/tags>
+
+```bash
+docker pull ghcr.io/woozymasta/wg2awg:latest
+docker pull docker.io/woozymasta/wg2awg:latest
+```
 
 Architectures built by this repo (with practical hardware examples):
 
@@ -248,50 +259,6 @@ Important parser nuance:
 * `-h`, `--help`.
 * `-v`, `--version`.
 
-### Environment Variables
-
-Connection and identity:
-
-* `AWG_LISTEN`: local listen address, `host:port`.
-* `AWG_REMOTE`: remote address, `host:port`.
-* `AWG_MODE`: `client`, `gateway`, `server`.
-* `AWG_SERVER_PUB`: server public key (base64).
-* `AWG_CLIENT_PUB`: client public key (base64).
-* `AWG_PRIVATE_KEY`: client private key (base64), used to derive pub key.
-* `AWG_CLIENT_PUBS`: comma/space/newline-separated peer pub keys.
-* `AWG_CLIENT_PUBS_FILE`: file with peer pub keys.
-
-Obfuscation and packet shaping:
-
-* `AWG_JC`, `AWG_JMIN`, `AWG_JMAX`.
-* `AWG_S1`, `AWG_S2`, `AWG_S3`, `AWG_S4`.
-* `AWG_H1`, `AWG_H2`, `AWG_H3`, `AWG_H4`.
-* `AWG_I1` .. `AWG_I5` (CPS templates).
-
-Operational and network:
-
-* `AWG_TIMEOUT` (default `180`).
-* `AWG_REMOTE_SILENT_TIMEOUT` (default `300`).
-* `AWG_CONNECT_RETRIES` (default `0`, unlimited).
-* `AWG_SRC_PORT` (`auto` or numeric).
-* `AWG_SOCKET_BUF` (default `16777216`).
-* `AWG_DNS` (writes `/etc/resolv.conf`).
-* `AWG_NO_GRO` (default `0`).
-
-Performance tuning:
-
-* `AWG_CPU_C2S`, `AWG_CPU_S2C` (default `-1`).
-* `AWG_BUSY_POLL` (default `0`).
-
-Logging:
-
-* `AWG_LOG_LEVEL`: `none`, `error`, `info`, `debug`.
-
-Address format note:
-
-* IPv6 literals must be written as `[ipv6]:port` (for example
-  `[2001:db8::10]:51820`).
-
 ### Parameter Mapping from WG/AWG Config
 
 This proxy can consume a standard WireGuard/AmneziaWG INI file. Fields map to
@@ -308,7 +275,7 @@ runtime options as follows:
 
 The config file has higher priority than environment variables.
 
-### Detailed Option Reference
+### Environment Variables (Reference)
 
 #### Core Routing and Mode
 
@@ -472,6 +439,8 @@ Treat these as operational guidance, not hard limits in this proxy.
 
 ### Linux Host with Docker (client mode)
 
+With env vars:
+
 ```bash
 docker run --rm --network host \
   -e AWG_LISTEN=0.0.0.0:51820 \
@@ -482,7 +451,16 @@ docker run --rm --network host \
   -e AWG_S1=0 -e AWG_S2=7 \
   -e AWG_H1=1250212372 -e AWG_H2=322115822 \
   -e AWG_H3=412530544 -e AWG_H4=654563364 \
-  ghcr.io/<owner>/wg2awg:latest
+  ghcr.io/woozymasta/wg2awg:latest
+```
+
+Config-file variant:
+
+```bash
+docker run --rm --network host \
+  -v "$(pwd)/wg0.conf:/etc/wg2awg/wg0.conf:ro" \
+  -e AWG_CONFIG=/etc/wg2awg/wg0.conf \
+  ghcr.io/woozymasta/wg2awg:latest
 ```
 
 ### MikroTik RouterOS (client mode)
@@ -503,6 +481,16 @@ docker run --rm --network host \
 
 1. Configure WireGuard peer endpoint to local proxy (`172.18.0.2:51820`).
 1. Create container env list with AWG parameters from your exported `.conf`.
+   Minimal example:
+
+   ```routeros
+   /container/envs/add list=wg2awg-env key=AWG_LISTEN value=0.0.0.0:51820
+   /container/envs/add list=wg2awg-env key=AWG_REMOTE value=vpn.example.com:443
+   /container/envs/add list=wg2awg-env key=AWG_MODE value=client
+   ```
+
+   Add the rest of required variables the same way
+   (`AWG_SERVER_PUB`, `AWG_CLIENT_PUB`, and your AWG profile values).
 1. Import and run image archive:
 
    ```routeros
@@ -510,6 +498,14 @@ docker run --rm --network host \
       envlist=wg2awg-env root-dir=disk1/wg2awg logging=yes
    /container/start [find where interface=veth-awg]
    ```
+
+#### Config-file alternative, instead of many env vars
+
+Mount a single config file and pass only `AWG_CONFIG` in env list.
+
+```routeros
+/container/envs/add list=wg2awg-env key=AWG_CONFIG value=/etc/wg2awg/wg0.conf
+```
 
 ### OpenWrt / Linux Router Pattern
 
