@@ -468,6 +468,7 @@ Config-file variant:
 docker run --rm --network host \
   -v "$(pwd)/wg0.conf:/etc/wg2awg/wg0.conf:ro" \
   -e AWG_CONFIG=/etc/wg2awg/wg0.conf \
+  -e AWG_LISTEN=:51820 \
   ghcr.io/woozymasta/wg2awg:latest
 ```
 
