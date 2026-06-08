@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <pthread.h>
 
-/* ---- Helpers ---- */
 static int fill_random_seed(uint64_t *seed) {
     int ufd = open("/dev/urandom", O_RDONLY);
     if (ufd < 0)
@@ -84,9 +83,7 @@ static int junk_layout_sizes(const awg_config_t *cfg, size_t *junk_bytes,
     return 0;
 }
 
-/* ---- GRO/GSO ---- */
-
-/* ---- Init ---- */
+/* GRO/GSO */
 
 int proxy_init(proxy_t *p, awg_config_t *cfg, const char *listen_str,
                const char *remote_str, int src_port) {
@@ -110,7 +107,7 @@ int proxy_init(proxy_t *p, awg_config_t *cfg, const char *listen_str,
     if (net_addr_parse_host_port(listen_str, host, sizeof(host), &port) < 0)
         return -1;
     if (net_addr_resolve_host_port(host, port, 1, &p->listen_addr,
-                                   &p->listen_addr_len) < 0)
+                                   &p->listen_addr_len, NULL) < 0)
         return -1;
 
     /* Parse remote address */
@@ -155,11 +152,7 @@ int proxy_init(proxy_t *p, awg_config_t *cfg, const char *listen_str,
     return 0;
 }
 
-/* ---- Send helpers ---- */
-
-/* ---- Send batch with GSO ---- */
-
-/* ---- c2s thread ---- */
+/* Send batch with GSO */
 
 static void *c2s_thread(void *arg) {
     proxy_t *p = (proxy_t *)arg;
@@ -169,11 +162,10 @@ static void *c2s_thread(void *arg) {
     return proxy_c2s_thread_client(arg, pick_h4, proxy_log_addr);
 }
 
-/* ---- s2c thread ---- */
-
-/* ---- s2c packet processing: client mode (AWG->WG inbound) ---- */
-
-/* ---- s2c packet processing: gateway/server mode (WG->AWG outbound) ---- */
+/*
+    s2c packet processing: client mode (AWG->WG inbound)
+    s2c packet processing: gateway/server mode (WG->AWG outbound)
+*/
 
 __attribute__((hot)) static void *s2c_thread(void *arg) {
     proxy_t *p = (proxy_t *)arg;
@@ -373,7 +365,7 @@ __attribute__((hot)) static void *s2c_thread(void *arg) {
     return NULL;
 }
 
-/* ---- Main ---- */
+/* Main */
 
 int proxy_run(proxy_t *p) {
     awg_config_t *cfg = p->cfg;

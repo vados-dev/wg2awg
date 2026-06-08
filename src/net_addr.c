@@ -30,7 +30,7 @@ int net_addr_to_host(const struct sockaddr_storage *addr, char *host,
 
 int net_addr_resolve_host_port(const char *host, uint16_t port, int passive,
                                struct sockaddr_storage *addr,
-                               socklen_t *addr_len) {
+                               socklen_t *addr_len, int *gai_err_out) {
     char portstr[6];
     struct addrinfo hints;
     struct addrinfo *res = NULL;
@@ -46,8 +46,11 @@ int net_addr_resolve_host_port(const char *host, uint16_t port, int passive,
 
     gai_err =
         getaddrinfo((host && host[0]) ? host : NULL, portstr, &hints, &res);
-    if (gai_err != 0)
+    if (gai_err != 0) {
+        if (gai_err_out)
+            *gai_err_out = gai_err;
         return -1;
+    }
 
     for (it = res; it; it = it->ai_next) {
         if (it->ai_family != AF_INET && it->ai_family != AF_INET6)
@@ -57,11 +60,15 @@ int net_addr_resolve_host_port(const char *host, uint16_t port, int passive,
         memset(addr, 0, sizeof(*addr));
         memcpy(addr, it->ai_addr, (size_t)it->ai_addrlen);
         *addr_len = it->ai_addrlen;
+        if (gai_err_out)
+            *gai_err_out = 0;
         freeaddrinfo(res);
         return 0;
     }
 
     freeaddrinfo(res);
+    if (gai_err_out)
+        *gai_err_out = EAI_FAIL;
     return -1;
 }
 

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "test.h"
 #include "config_runtime.h"
 
@@ -218,6 +219,7 @@ static void unset_operational_env(void) {
     unsetenv("AWG_TIMEOUT");
     unsetenv("AWG_REMOTE_SILENT_TIMEOUT");
     unsetenv("AWG_CONNECT_RETRIES");
+    unsetenv("AWG_DNS_RESOLVE_FAILURE_TIMEOUT");
     unsetenv("AWG_SOCKET_BUF");
 }
 
@@ -230,6 +232,7 @@ static void test_load_operational_env_defaults(void) {
     ASSERT_EQ(cfg.timeout, 180);
     ASSERT_EQ(cfg.remote_silent_timeout, 300);
     ASSERT_EQ(cfg.connect_retries, 0);
+    ASSERT_EQ(cfg.dns_resolve_failure_timeout, 12 * 60);
     ASSERT_EQ(cfg.socket_buf, 16 * 1024 * 1024);
 }
 
@@ -240,11 +243,13 @@ static void test_load_operational_env_valid(void) {
     ASSERT_EQ(setenv("AWG_TIMEOUT", "10", 1), 0);
     ASSERT_EQ(setenv("AWG_REMOTE_SILENT_TIMEOUT", "20", 1), 0);
     ASSERT_EQ(setenv("AWG_CONNECT_RETRIES", "3", 1), 0);
+    ASSERT_EQ(setenv("AWG_DNS_RESOLVE_FAILURE_TIMEOUT", "90", 1), 0);
     ASSERT_EQ(setenv("AWG_SOCKET_BUF", "8192", 1), 0);
     ASSERT_EQ(load_operational_env(&cfg, &err), 0);
     ASSERT_EQ(cfg.timeout, 10);
     ASSERT_EQ(cfg.remote_silent_timeout, 20);
     ASSERT_EQ(cfg.connect_retries, 3);
+    ASSERT_EQ(cfg.dns_resolve_failure_timeout, 90);
     ASSERT_EQ(cfg.socket_buf, 8192);
     unset_operational_env();
 }
@@ -263,6 +268,13 @@ static void test_load_operational_env_invalid(void) {
     err = NULL;
     ASSERT_EQ(load_operational_env(&cfg, &err), -1);
     ASSERT(err && strcmp(err, "AWG_CONNECT_RETRIES: must be >= 0") == 0);
+    unset_operational_env();
+
+    ASSERT_EQ(setenv("AWG_DNS_RESOLVE_FAILURE_TIMEOUT", "-1", 1), 0);
+    err = NULL;
+    ASSERT_EQ(load_operational_env(&cfg, &err), -1);
+    ASSERT(err &&
+           strcmp(err, "AWG_DNS_RESOLVE_FAILURE_TIMEOUT: must be >= 0") == 0);
     unset_operational_env();
 }
 

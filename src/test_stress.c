@@ -48,8 +48,6 @@
 #define RECV_TIMEOUT_MS 4000
 #define PROXY_BINARY_DEFAULT "build/wg2awg"
 
-/* ---- Helpers ---- */
-
 static int find_free_port(void) {
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0)
@@ -250,7 +248,7 @@ static void stop_proxy(pid_t pid) {
     waitpid(pid, &st, 0);
 }
 
-/* ---- Packet crafting ---- */
+/* Packet crafting */
 
 static void make_wg_init(uint8_t *buf, uint32_t sender_index) {
     memset(buf, 0, WG_INIT_SIZE);
@@ -376,7 +374,7 @@ static int async_recv_stop(async_recv_t *r, pthread_t t) {
     return atomic_load(&r->count);
 }
 
-/* ---- Scenario 1: Normal mode burst throughput ---- */
+/* Scenario 1: Normal mode burst throughput */
 
 static void test_client_burst(void) {
     int listen_port = find_free_port();
@@ -449,7 +447,7 @@ static void test_client_burst(void) {
     close(server_fd);
 }
 
-/* ---- Scenario 2: Reverse mode bidirectional ---- */
+/* Scenario 2: Reverse mode bidirectional */
 
 typedef struct {
     int fd;
@@ -572,7 +570,7 @@ static void test_gateway_bidirectional(void) {
     close(server_fd);
 }
 
-/* ---- Scenario 3: Server mode multi-client ---- */
+/* Scenario 3: Server mode multi-client */
 
 static void test_server_multiclient(void) {
     int listen_port = find_free_port();
@@ -714,7 +712,7 @@ static void test_server_multiclient(void) {
     close(server_fd);
 }
 
-/* ---- Scenario 4: Server-initiated rekey ---- */
+/* Scenario 4: Server-initiated rekey */
 
 static void test_server_rekey(void) {
     int listen_port = find_free_port();
@@ -791,7 +789,7 @@ static void test_server_rekey(void) {
     close(server_fd);
 }
 
-/* ---- Scenario 5: Concurrent handshakes ---- */
+/* Scenario 5: Concurrent handshakes */
 
 typedef struct {
     int fd;
@@ -885,7 +883,7 @@ static void test_concurrent_handshakes(void) {
     close(server_fd);
 }
 
-/* ---- Scenario 6: Scale test - 100K / 1M / 10M through one proxy ---- */
+/* Scenario 6: Scale test - 100K / 1M / 10M through one proxy */
 
 static void test_scale(void) {
     int listen_port = find_free_port();
@@ -982,7 +980,7 @@ static void test_scale(void) {
     close(server_fd);
 }
 
-/* ---- Scenario 7: GSO on connected socket ---- */
+/* Scenario 7: GSO on connected socket */
 
 #ifndef UDP_SEGMENT
 #define UDP_SEGMENT 103
@@ -1068,7 +1066,7 @@ static void test_gso_connected(void) {
     close(recv_fd);
 }
 
-/* ---- Scenario 8: GRO-enabled bidirectional throughput ---- */
+/* Scenario 8: GRO-enabled bidirectional throughput */
 
 static void test_gro_bidirectional(void) {
     /* Run proxy WITH GRO enabled and verify both directions work.
@@ -1181,7 +1179,7 @@ static void test_gro_bidirectional(void) {
     close(server_fd);
 }
 
-/* ---- Scenario 9: Throughput benchmark (realistic MTU) ---- */
+/* Scenario 9: Throughput benchmark (realistic MTU) */
 
 static void test_throughput_benchmark(void) {
     /* Measure real throughput in both directions with realistic WG packet size.
@@ -1304,8 +1302,6 @@ static void test_throughput_benchmark(void) {
     close(client_fd);
     close(server_fd);
 }
-
-/* ---- Main ---- */
 
 int main(void) {
     fprintf(stderr, "=== stress tests ===\n");

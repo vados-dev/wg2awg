@@ -39,7 +39,8 @@ static void test_resolve_host_port_localhost(void) {
     struct sockaddr_storage addr;
     socklen_t len = 0;
     char host[128];
-    ASSERT_EQ(net_addr_resolve_host_port("localhost", 53, 0, &addr, &len), 0);
+    ASSERT_EQ(net_addr_resolve_host_port("localhost", 53, 0, &addr, &len, NULL),
+              0);
     ASSERT(len > 0);
     ASSERT(net_addr_to_host(&addr, host, sizeof(host)) == 0);
     ASSERT(host[0] != '\0');

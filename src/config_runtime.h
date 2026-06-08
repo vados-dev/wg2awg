@@ -46,7 +46,8 @@ int load_server_peer_file(awg_config_t *cfg, const char *path);
 int add_server_peer_pub_unique(awg_config_t *cfg, const uint8_t pub[32]);
 
 /* Load operational parameters from environment with defaults.
- * Sets timeout/remote_silent_timeout/connect_retries/socket_buf.
+ * Sets timeout/remote_silent_timeout/connect_retries,
+ * dns_resolve_failure_timeout/socket_buf.
  * Returns 0 on success, -1 on invalid values and sets *err_msg. */
 int load_operational_env(awg_config_t *cfg, const char **err_msg);
 

@@ -320,6 +320,22 @@ int load_operational_env(awg_config_t *cfg, const char **err_msg) {
         cfg->connect_retries = iv;
     }
 
+    cfg->dns_resolve_failure_timeout = 12 * 60;
+    v = getenv("AWG_DNS_RESOLVE_FAILURE_TIMEOUT");
+    if (v && v[0]) {
+        if (parse_int_strict(v, &iv) < 0) {
+            if (err_msg)
+                *err_msg = "AWG_DNS_RESOLVE_FAILURE_TIMEOUT: invalid integer";
+            return -1;
+        }
+        if (iv < 0) {
+            if (err_msg)
+                *err_msg = "AWG_DNS_RESOLVE_FAILURE_TIMEOUT: must be >= 0";
+            return -1;
+        }
+        cfg->dns_resolve_failure_timeout = iv;
+    }
+
     cfg->socket_buf = 16 * 1024 * 1024;
     v = getenv("AWG_SOCKET_BUF");
     if (v && v[0]) {

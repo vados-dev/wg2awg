@@ -14,6 +14,6 @@ int net_addr_parse_host_port(const char *s, char *host, int hostmax,
                              uint16_t *port);
 int net_addr_resolve_host_port(const char *host, uint16_t port, int passive,
                                struct sockaddr_storage *addr,
-                               socklen_t *addr_len);
+                               socklen_t *addr_len, int *gai_err_out);
 
 #endif

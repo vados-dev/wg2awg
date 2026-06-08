@@ -390,6 +390,11 @@ of traffic obfuscation.
   Startup-only connect retry count.
   `0` means unlimited retries before daemon enters steady state.
   After startup, runtime reconnect loop always retries with backoff.
+* `AWG_DNS_RESOLVE_FAILURE_TIMEOUT` (seconds, default `720`)
+  Consecutive DNS resolve failure timeout.
+  If hostname resolution for `AWG_REMOTE` keeps failing for this long,
+  process exits non-zero so container runtime can restart it.
+  `0` disables this guard.
 * `AWG_DNS`
   Comma-separated resolvers written to `/etc/resolv.conf`.
   Affects hostname resolution for `AWG_REMOTE`.

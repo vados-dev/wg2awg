@@ -92,6 +92,7 @@ typedef struct {
     uint16_t remote_port;
     int auto_src_port;
     int local_port;
+    int dns_resolve_fail_started_at;
 
     uint32_t cps_counter;
     uint8_t *junk_buf;
