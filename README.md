@@ -26,7 +26,8 @@ wg2awg is derived from amneziawg-mikrotik-c by timbrs:
 
 * Connect WireGuard-only routers to AmneziaWG servers.
 * Build site-to-site flows with AWG framing on the public side.
-* Aggregate multiple AWG clients into a single WireGuard backend in hub mode.
+* Aggregate multiple AWG clients
+  into a single WireGuard backend in `server` mode.
 
 ## Architecture
 
@@ -267,13 +268,15 @@ Important parser nuance:
 This proxy can consume a standard WireGuard/AmneziaWG INI file. Fields map to
 runtime options as follows:
 
-* `[Interface].PrivateKey` -> local client key, converted to client public key
-  (same role as `AWG_PRIVATE_KEY`).
+* `[Interface].PrivateKey` -> local private key,
+  used only to derive the local public key (same role as `AWG_PRIVATE_KEY`).
 * `[Interface].ListenPort` -> `AWG_LISTEN` as `0.0.0.0:<port>`.
-* `[Interface].DNS` -> resolver list written to `/etc/resolv.conf`.
+* `[Interface].DNS` -> resolver list written to container
+  `/etc/resolv.conf` when writable.
 * `[Interface].Jc/Jmin/Jmax/S1/S2/H1/H2/H3/H4` -> AWG obfuscation settings.
-* First `[Peer].PublicKey` -> remote server key (`AWG_SERVER_PUB`).
-* First `[Peer].Endpoint` -> `AWG_REMOTE`.
+* First `[Peer].PublicKey` -> main remote peer key
+  (`AWG_SERVER_PUB` in `client`/`gateway` mode).
+* First `[Peer].Endpoint` -> main remote endpoint (`AWG_REMOTE`).
 * All `[Peer].PublicKey` entries -> server-mode explicit peer list.
 
 The config file has higher priority than environment variables.
@@ -302,11 +305,11 @@ The config file has higher priority than environment variables.
 #### Identity, Keys, and Peer Resolution
 
 * `AWG_SERVER_PUB`
-  Base64 public key of the server-side WireGuard peer.
-  Used to derive MAC1 key for handshake rewriting in the active direction.
+  Base64 public key of the main remote WireGuard peer.
+  Used to derive the outbound MAC1 key for handshake rewriting.
 * `AWG_CLIENT_PUB`
-  Base64 public key of the client-side WireGuard peer.
-  Used to derive MAC1 key for the opposite direction.
+  Base64 public key of the local WireGuard peer.
+  Used to derive the inbound MAC1 key for the opposite handshake direction.
 * `AWG_PRIVATE_KEY`
   Base64 private key (32 bytes) used only to derive `AWG_CLIENT_PUB`.
   If both are provided, explicit `AWG_CLIENT_PUB` overrides derived value.
@@ -328,16 +331,16 @@ The config file has higher priority than environment variables.
   Min/max junk packet size in bytes.
   Junk sizes are randomized per packet in this range.
 * `AWG_S1`
-  Extra bytes prepended to WireGuard handshake-init packets.
+  Extra padding bytes added to WireGuard handshake-init packets.
   Applies only to type-1 handshake packets.
 * `AWG_S2`
-  Extra bytes prepended to WireGuard handshake-response packets.
+  Extra padding bytes added to WireGuard handshake-response packets.
   Applies only to type-2 handshake packets.
 * `AWG_S3`
-  Extra bytes prepended to WireGuard cookie-reply packets (v2 behavior).
+  Extra padding bytes added to WireGuard cookie-reply packets (v2 behavior).
   Applies only to type-3 packets.
 * `AWG_S4`
-  Extra bytes prepended to WireGuard transport-data packets (v2 behavior).
+  Extra padding bytes added to WireGuard transport-data packets (v2 behavior).
   Applies to data packets and changes transport packet length profile.
 * `AWG_H1`, `AWG_H2`, `AWG_H3`, `AWG_H4`
   Replacement values for WireGuard message type field:
@@ -371,6 +374,7 @@ of traffic obfuscation.
 * `game_enet`: ENet-like command batch with variable command count.
 * `game_kcp`: KCP-like segment fields with small pad jitter.
 * `dns_like`: DNS-query-like header and qname envelope.
+  This is only an outer obfuscation profile, not DNS transport.
 
 > [!IMPORTANT]
 > This is not AmneziaWG framing and is incompatible
@@ -396,8 +400,8 @@ of traffic obfuscation.
   process exits non-zero so container runtime can restart it.
   `0` disables this guard.
 * `AWG_DNS`
-  Comma-separated resolvers written to `/etc/resolv.conf`.
-  Affects hostname resolution for `AWG_REMOTE`.
+  Comma-separated resolvers written to container `/etc/resolv.conf`
+  when writable. Affects hostname resolution for `AWG_REMOTE`.
   Config file `DNS` has precedence over env.
 
 #### Socket and Performance Controls
