@@ -30,7 +30,9 @@ static void print_help(void) {
     fputs(
         "wg2awg " VERSION "\n"
         "\n"
-        "Usage: wg2awg [-c <config>] [-l <level>] [-h] [-v]\n"
+        "Usage: wg2awg [-c <config>] [-l <level>] [-m <mode>]\n"
+        "              [-L <host:port>] [-r <host:port>]\n"
+        "              [-s <auto|port>] [-h] [-v]\n"
         "\n"
         "AmneziaWG <-> WireGuard transparent proxy.\n"
         "Translates AWG obfuscated traffic to plain WireGuard and back.\n"
@@ -41,6 +43,10 @@ static void print_help(void) {
         "  -c, --config <path>       Load AmneziaWG/WireGuard config file\n"
         "  -l, --log-level <level>   Log level: none | error | info | debug  "
         "(default: info)\n"
+        "  -m, --mode <mode>         Proxy mode: client | gateway | server\n"
+        "  -L, --listen <host:port>  Local listen address override\n"
+        "  -r, --remote <host:port>  Remote endpoint override\n"
+        "  -s, --src-port <value>    Remote socket source port: auto | <port>\n"
         "  -h, --help                Show this help and exit\n"
         "  -v, --version             Show version and exit\n"
         "\n"
@@ -190,27 +196,75 @@ int main(int argc, char *argv[]) {
     /* -- 1. Parse CLI flags -- */
     const char *config_path = getenv("AWG_CONFIG");
     const char *log_level_flag = NULL;
+    const char *mode_flag = NULL;
+    const char *listen_flag = NULL;
+    const char *remote_flag = NULL;
+    const char *src_port_flag = NULL;
 
     for (int i = 1; i < argc; i++) {
+        /* config */
         if ((strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) &&
             i + 1 < argc) {
             config_path = argv[++i];
         } else if (strncmp(argv[i], "--config=", 9) == 0) {
             config_path = argv[i] + 9;
+
+            /* log level */
         } else if ((strcmp(argv[i], "-l") == 0 ||
                     strcmp(argv[i], "--log-level") == 0) &&
                    i + 1 < argc) {
             log_level_flag = argv[++i];
         } else if (strncmp(argv[i], "--log-level=", 12) == 0) {
             log_level_flag = argv[i] + 12;
+
+            /* mode */
+        } else if ((strcmp(argv[i], "-m") == 0 ||
+                    strcmp(argv[i], "--mode") == 0) &&
+                   i + 1 < argc) {
+            mode_flag = argv[++i];
+        } else if (strncmp(argv[i], "--mode=", 7) == 0) {
+            mode_flag = argv[i] + 7;
+
+            /* listen */
+        } else if ((strcmp(argv[i], "-L") == 0 ||
+                    strcmp(argv[i], "--listen") == 0) &&
+                   i + 1 < argc) {
+            listen_flag = argv[++i];
+        } else if (strncmp(argv[i], "--listen=", 9) == 0) {
+            listen_flag = argv[i] + 9;
+
+            /* remote */
+        } else if ((strcmp(argv[i], "-r") == 0 ||
+                    strcmp(argv[i], "--remote") == 0) &&
+                   i + 1 < argc) {
+            remote_flag = argv[++i];
+        } else if (strncmp(argv[i], "--remote=", 9) == 0) {
+            remote_flag = argv[i] + 9;
+
+            /* source port */
+        } else if ((strcmp(argv[i], "-s") == 0 ||
+                    strcmp(argv[i], "--src-port") == 0) &&
+                   i + 1 < argc) {
+            src_port_flag = argv[++i];
+        } else if (strncmp(argv[i], "--src-port=", 11) == 0) {
+            src_port_flag = argv[i] + 11;
+
+            /* help */
         } else if (strcmp(argv[i], "-h") == 0 ||
                    strcmp(argv[i], "--help") == 0) {
             print_help();
             return 0;
+
+            /* version */
         } else if (strcmp(argv[i], "-v") == 0 ||
                    strcmp(argv[i], "--version") == 0) {
             print_version();
             return 0;
+        } else {
+            const char *parts[] = {"unknown option: ", argv[i]};
+            log_msgn("FATAL: ", parts, 2);
+            print_help();
+            return 1;
         }
     }
 
@@ -240,6 +294,10 @@ int main(int argc, char *argv[]) {
         if (parse_awg_mode(v, &cfg->mode) < 0)
             fatal("AWG_MODE: expected client|gateway|server");
     }
+    if (mode_flag && mode_flag[0]) {
+        if (parse_awg_mode(mode_flag, &cfg->mode) < 0)
+            fatal("--mode: expected client|gateway|server");
+    }
 
     /* -- 4. Listen / remote addresses (env var as default, config file
      * overrides) -- */
@@ -251,6 +309,15 @@ int main(int argc, char *argv[]) {
                               g_listen_buf, sizeof(g_listen_buf), g_remote_buf,
                               sizeof(g_remote_buf)) < 0)
         fatal("failed to merge listen/remote config");
+
+    if (listen_flag && listen_flag[0]) {
+        strncpy(g_listen_buf, listen_flag, sizeof(g_listen_buf) - 1);
+        g_listen_buf[sizeof(g_listen_buf) - 1] = '\0';
+    }
+    if (remote_flag && remote_flag[0]) {
+        strncpy(g_remote_buf, remote_flag, sizeof(g_remote_buf) - 1);
+        g_remote_buf[sizeof(g_remote_buf) - 1] = '\0';
+    }
 
     const char *listen_str = g_listen_buf;
     const char *remote_str = g_remote_buf;
@@ -392,6 +459,12 @@ int main(int argc, char *argv[]) {
         const char *np_err = NULL;
         if (load_network_perf_env(cfg, &np_err) < 0)
             fatal(np_err ? np_err : "invalid network/perf env");
+    }
+    if (src_port_flag && src_port_flag[0]) {
+        int parsed_src_port;
+        if (parse_src_port(src_port_flag, &parsed_src_port) < 0)
+            fatal("--src-port: expected auto or integer");
+        cfg->src_port = parsed_src_port;
     }
     int src_port = cfg->src_port;
 

@@ -219,7 +219,8 @@ Effective config is merged in this order:
 1. Built-in defaults.
 1. Environment variables.
 1. Config file values from `-c/--config` or `AWG_CONFIG`.
-1. CLI log-level (`-l/--log-level`) over `AWG_LOG_LEVEL`.
+1. CLI overrides:
+  `-m/--mode`, `-L/--listen`, `-r/--remote`, `-s/--src-port`, `-l/--log-level`.
 
 Extra key precedence rules:
 
@@ -258,10 +259,14 @@ Important parser nuance:
 
 ### CLI Flags
 
-* `-c`, `--config <path>`: load config file.
-* `-l`, `--log-level <none|error|info|debug>`.
-* `-h`, `--help`.
-* `-v`, `--version`.
+* `-c`, `--config <path>`: select config file; override `AWG_CONFIG`.
+* `-m`, `--mode <client|gateway|server>`: override `AWG_MODE`.
+* `-L`, `--listen <host:port>`: override `AWG_LISTEN`.
+* `-r`, `--remote <host:port>`: override `AWG_REMOTE`.
+* `-s`, `--src-port <auto|port>`: override `AWG_SRC_PORT`.
+* `-l`, `--log-level <none|error|info|debug>`: override `AWG_LOG_LEVEL`.
+* `-h`, `--help`: print help.
+* `-v`, `--version`: print version.
 
 ### Parameter Mapping from WG/AWG Config
 
