@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog][], and this project adheres to
 [Semantic Versioning][].
 
+## [0.2.1] - 2026-06-11
+
+### Added
+
+* Add CLI flags for mode, listen, remote, and source port overrides.
+
+[0.2.1]: https://github.com/WoozyMasta/wg2awg/compare/0.2.0...0.2.1
+
 ## [0.2.0] - 2026-06-08
 
 ### Added
