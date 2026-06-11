@@ -1,7 +1,7 @@
 # wg2awg
 
 <!-- markdownlint-disable-next-line MD033 -->
-<img src="logo.svg" alt="wg2awg" align="right" width="256">
+<img src="assets/logo.svg" alt="wg2awg" align="right" width="256">
 
 `wg2awg` is a lightweight UDP proxy that converts packet format between
 standard WireGuard and AmneziaWG.
