@@ -106,8 +106,9 @@ static int decode_key32(const char *val, uint8_t out[32], const char *field) {
 
 /* Commit accumulated peer state into out */
 static int flush_peer(awg_file_config_t *out, int *first_peer, int has_pub,
-                      const uint8_t pub[32], int has_ep, const char *ep) {
-    if (!has_pub && !has_ep)
+                      const uint8_t pub[32], int has_ep, const char *ep,
+                      int has_ka, int ka) {
+    if (!has_pub && !has_ep && !has_ka)
         return 0;
 
     if (has_pub) {
@@ -123,6 +124,10 @@ static int flush_peer(awg_file_config_t *out, int *first_peer, int has_pub,
         strncpy(out->endpoint, ep, sizeof(out->endpoint) - 1);
         out->endpoint[sizeof(out->endpoint) - 1] = '\0';
         out->have_endpoint = 1;
+    }
+    if (has_ka && *first_peer) {
+        out->keepalive = ka;
+        out->have_keepalive = 1;
     }
     *first_peer = 0;
     return 0;
@@ -144,6 +149,8 @@ int config_file_parse(const char *path, awg_file_config_t *out) {
     uint8_t cur_pub[32];
     int cur_has_ep = 0;
     char cur_ep[256];
+    int cur_has_ka = 0;
+    int cur_ka = 0;
 
     while (fgets(line, sizeof(line), f)) {
         /* Strip inline comment */
@@ -160,11 +167,11 @@ int config_file_parse(const char *path, awg_file_config_t *out) {
         if (line[0] == '[') {
             if (section == SEC_PEER)
                 if (flush_peer(out, &first_peer, cur_has_pub, cur_pub,
-                               cur_has_ep, cur_ep) < 0) {
+                               cur_has_ep, cur_ep, cur_has_ka, cur_ka) < 0) {
                     fclose(f);
                     return -1;
                 }
-            cur_has_pub = cur_has_ep = 0;
+            cur_has_pub = cur_has_ep = cur_has_ka = 0;
 
             int len = (int)strlen(line);
             if (len > 2 && line[len - 1] == ']')
@@ -324,15 +331,21 @@ int config_file_parse(const char *path, awg_file_config_t *out) {
                 strncpy(cur_ep, val, sizeof(cur_ep) - 1);
                 cur_ep[sizeof(cur_ep) - 1] = '\0';
                 cur_has_ep = 1;
+            } else if (keq(key, "PersistentKeepalive")) {
+                int ka;
+                if (parse_int(val, &ka) == 0 && ka > 0) {
+                    cur_ka = ka;
+                    cur_has_ka = 1;
+                }
             }
-            /* PresharedKey, AllowedIPs, PersistentKeepalive - ignored */
+            /* PresharedKey, AllowedIPs - ignored */
         }
     }
 
     /* Flush the last [Peer] section */
     if (section == SEC_PEER)
         if (flush_peer(out, &first_peer, cur_has_pub, cur_pub, cur_has_ep,
-                       cur_ep) < 0) {
+                       cur_ep, cur_has_ka, cur_ka) < 0) {
             fclose(f);
             return -1;
         }

@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog][], and this project adheres to
 [Semantic Versioning][].
 
+## [Unreleased]
+
+### Added
+
+* Add `AWG_REMOTE_SILENT_EXIT_TIMEOUT` (default `900`, `0` disables)
+  to exit non-zero after prolonged one-sided remote silence
+  so the container runtime can restart the service.
+* Log a `WARN` line once one-sided remote silence (client active, remote silent)
+  reaches half of the reconnect timeout (`keepalive * 2` by default),
+  making WAN/PPPoE reconnect path loss visible in logs before reconnect fires.
+
+### Changed
+
+* `AWG_REMOTE_SILENT_TIMEOUT` now defaults to `auto`:
+  derived from the peer `PersistentKeepalive` as `keepalive * 4`,
+  with a lower bound of `30` and, when `AWG_REMOTE_SILENT_EXIT_TIMEOUT`
+  is enabled, an upper bound of half that value (fallback `60`),
+  down from the previous fixed `300`. An explicit value still overrides.
+
 ## [0.2.1] - 2026-06-11
 
 ### Added

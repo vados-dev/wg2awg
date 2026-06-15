@@ -46,10 +46,20 @@ int load_server_peer_file(awg_config_t *cfg, const char *path);
 int add_server_peer_pub_unique(awg_config_t *cfg, const uint8_t pub[32]);
 
 /* Load operational parameters from environment with defaults.
- * Sets timeout/remote_silent_timeout/connect_retries,
+ * Sets
+ * timeout/remote_silent_timeout/remote_silent_exit_timeout/connect_retries,
  * dns_resolve_failure_timeout/socket_buf.
  * Returns 0 on success, -1 on invalid values and sets *err_msg. */
 int load_operational_env(awg_config_t *cfg, const char **err_msg);
+
+/* Resolve the effective one-sided-silence reconnect timeout (seconds).
+ * An explicit value (explicit_secs > 0, e.g. from AWG_REMOTE_SILENT_TIMEOUT)
+ * is used as-is; otherwise it is derived from the peer PersistentKeepalive as
+ * keepalive*4 (fallback 15 when absent), with a lower bound of 30 and, when the
+ * exit guard is enabled (exit_secs > 0), an upper bound of exit_secs/2 so
+ * reconnect is attempted before the exit guard fires. */
+int compute_remote_silent_timeout(int explicit_secs, int have_keepalive,
+                                  int keepalive, int exit_secs);
 
 /* Load network/performance parameters from environment.
  * Sets src_port/cpu_c2s/cpu_s2c/busy_poll/no_gro.

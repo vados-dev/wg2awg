@@ -398,8 +398,9 @@ int proxy_run(proxy_t *p) {
 
     int timeout_secs = cfg->timeout > 0 ? cfg->timeout : 180;
     int silent_secs =
-        cfg->remote_silent_timeout > 0 ? cfg->remote_silent_timeout : 300;
-    proxy_control_loop(p, timeout_secs, silent_secs);
+        cfg->remote_silent_timeout > 0 ? cfg->remote_silent_timeout : 60;
+    int silent_exit_secs = cfg->remote_silent_exit_timeout;
+    proxy_control_loop(p, timeout_secs, silent_secs, silent_exit_secs);
 
 stop_threads:
     proxy_shutdown_sockets(p);

@@ -218,6 +218,7 @@ static void test_load_server_peer_file_valid(void) {
 static void unset_operational_env(void) {
     unsetenv("AWG_TIMEOUT");
     unsetenv("AWG_REMOTE_SILENT_TIMEOUT");
+    unsetenv("AWG_REMOTE_SILENT_EXIT_TIMEOUT");
     unsetenv("AWG_CONNECT_RETRIES");
     unsetenv("AWG_DNS_RESOLVE_FAILURE_TIMEOUT");
     unsetenv("AWG_SOCKET_BUF");
@@ -230,7 +231,8 @@ static void test_load_operational_env_defaults(void) {
     unset_operational_env();
     ASSERT_EQ(load_operational_env(&cfg, &err), 0);
     ASSERT_EQ(cfg.timeout, 180);
-    ASSERT_EQ(cfg.remote_silent_timeout, 300);
+    ASSERT_EQ(cfg.remote_silent_timeout, 0); /* 0 = auto (derived later) */
+    ASSERT_EQ(cfg.remote_silent_exit_timeout, 900);
     ASSERT_EQ(cfg.connect_retries, 0);
     ASSERT_EQ(cfg.dns_resolve_failure_timeout, 12 * 60);
     ASSERT_EQ(cfg.socket_buf, 16 * 1024 * 1024);
@@ -242,16 +244,37 @@ static void test_load_operational_env_valid(void) {
     memset(&cfg, 0, sizeof(cfg));
     ASSERT_EQ(setenv("AWG_TIMEOUT", "10", 1), 0);
     ASSERT_EQ(setenv("AWG_REMOTE_SILENT_TIMEOUT", "20", 1), 0);
+    ASSERT_EQ(setenv("AWG_REMOTE_SILENT_EXIT_TIMEOUT", "1200", 1), 0);
     ASSERT_EQ(setenv("AWG_CONNECT_RETRIES", "3", 1), 0);
     ASSERT_EQ(setenv("AWG_DNS_RESOLVE_FAILURE_TIMEOUT", "90", 1), 0);
     ASSERT_EQ(setenv("AWG_SOCKET_BUF", "8192", 1), 0);
     ASSERT_EQ(load_operational_env(&cfg, &err), 0);
     ASSERT_EQ(cfg.timeout, 10);
     ASSERT_EQ(cfg.remote_silent_timeout, 20);
+    ASSERT_EQ(cfg.remote_silent_exit_timeout, 1200);
     ASSERT_EQ(cfg.connect_retries, 3);
     ASSERT_EQ(cfg.dns_resolve_failure_timeout, 90);
     ASSERT_EQ(cfg.socket_buf, 8192);
     unset_operational_env();
+}
+
+static void test_compute_remote_silent_timeout(void) {
+    /* explicit value wins, no bounds applied */
+    ASSERT_EQ(compute_remote_silent_timeout(20, 1, 25, 900), 20);
+    ASSERT_EQ(compute_remote_silent_timeout(5, 0, 0, 900), 5);
+    /* keepalive * 4 (exit/2 cap not reached) */
+    ASSERT_EQ(compute_remote_silent_timeout(0, 1, 15, 900), 60);
+    ASSERT_EQ(compute_remote_silent_timeout(0, 1, 25, 900), 100);
+    /* floor 30 */
+    ASSERT_EQ(compute_remote_silent_timeout(0, 1, 5, 900), 30);
+    /* no keepalive -> fallback 15*4 = 60 */
+    ASSERT_EQ(compute_remote_silent_timeout(0, 0, 0, 900), 60);
+    /* no upper bound when exit guard disabled: keepalive 50 -> 200 */
+    ASSERT_EQ(compute_remote_silent_timeout(0, 1, 50, 0), 200);
+    /* capped at exit/2: keepalive 300 -> 1200, exit 900 -> 450 */
+    ASSERT_EQ(compute_remote_silent_timeout(0, 1, 300, 900), 450);
+    /* cap floored at 30 for tiny exit: keepalive 300, exit 40 -> 30 */
+    ASSERT_EQ(compute_remote_silent_timeout(0, 1, 300, 40), 30);
 }
 
 static void test_load_operational_env_invalid(void) {
@@ -275,6 +298,13 @@ static void test_load_operational_env_invalid(void) {
     ASSERT_EQ(load_operational_env(&cfg, &err), -1);
     ASSERT(err &&
            strcmp(err, "AWG_DNS_RESOLVE_FAILURE_TIMEOUT: must be >= 0") == 0);
+    unset_operational_env();
+
+    ASSERT_EQ(setenv("AWG_REMOTE_SILENT_EXIT_TIMEOUT", "-1", 1), 0);
+    err = NULL;
+    ASSERT_EQ(load_operational_env(&cfg, &err), -1);
+    ASSERT(err &&
+           strcmp(err, "AWG_REMOTE_SILENT_EXIT_TIMEOUT: must be >= 0") == 0);
     unset_operational_env();
 }
 
@@ -607,6 +637,7 @@ int main(void) {
     RUN_TEST(load_operational_env_defaults);
     RUN_TEST(load_operational_env_valid);
     RUN_TEST(load_operational_env_invalid);
+    RUN_TEST(compute_remote_silent_timeout);
     RUN_TEST(load_network_perf_env_defaults);
     RUN_TEST(load_network_perf_env_valid);
     RUN_TEST(load_network_perf_env_invalid);

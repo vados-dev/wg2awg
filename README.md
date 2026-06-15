@@ -386,10 +386,27 @@ of traffic obfuscation.
   Full inactivity timeout.
   If neither direction sees traffic for this interval, proxy reconnects remote
   socket (close + resolve + connect).
-* `AWG_REMOTE_SILENT_TIMEOUT` (seconds, default `300`)
-  One-sided silence timeout.
+* `AWG_REMOTE_SILENT_TIMEOUT` (seconds, default `auto`)
+  One-sided silence reconnect timeout.
   If local client keeps sending but remote side stays silent for this interval,
-  proxy forces reconnect. This is mainly useful for stale DNS/route recovery.
+  proxy forces reconnect (close + resolve + connect).
+  This recovers a dead remote path, e.g. after a WAN/PPPoE reconnect
+  changes the public IP and the old NAT mapping is gone.
+  `auto` derives the value from the peer `PersistentKeepalive` as
+  `keepalive * 4`, with a lower bound of `30`
+  (fallback `keepalive = 15`, i.e. `60`, when the config has no keepalive).
+  When `AWG_REMOTE_SILENT_EXIT_TIMEOUT` is enabled, the derived value is also
+  capped at half of it, so reconnect is attempted a few times before the exit
+  guard fires.
+  Set an explicit integer to override exactly (no bounds applied).
+  A `WARN` line is logged once silence reaches half of this timeout
+  (`keepalive * 2` by default),
+  so the loss is visible in logs before the reconnect fires.
+* `AWG_REMOTE_SILENT_EXIT_TIMEOUT` (seconds, default `900`)
+  One-sided silence exit guard.
+  If the client keeps sending but the remote stays silent continuously
+  for this long despite reconnect attempts, process exits non-zero
+  so the container runtime/systemd can restart it. `0` disables this guard.
 * `AWG_CONNECT_RETRIES` (default `0`)
   Startup-only connect retry count.
   `0` means unlimited retries before daemon enters steady state.

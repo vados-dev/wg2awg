@@ -293,7 +293,9 @@ int load_operational_env(awg_config_t *cfg, const char **err_msg) {
         cfg->timeout = iv;
     }
 
-    cfg->remote_silent_timeout = 300;
+    /* 0 = auto: derived from PersistentKeepalive later
+     * (compute_remote_silent_timeout). An explicit env value overrides. */
+    cfg->remote_silent_timeout = 0;
     v = getenv("AWG_REMOTE_SILENT_TIMEOUT");
     if (v && v[0]) {
         if (parse_int_strict(v, &iv) < 0) {
@@ -302,6 +304,22 @@ int load_operational_env(awg_config_t *cfg, const char **err_msg) {
             return -1;
         }
         cfg->remote_silent_timeout = iv;
+    }
+
+    cfg->remote_silent_exit_timeout = 900;
+    v = getenv("AWG_REMOTE_SILENT_EXIT_TIMEOUT");
+    if (v && v[0]) {
+        if (parse_int_strict(v, &iv) < 0) {
+            if (err_msg)
+                *err_msg = "AWG_REMOTE_SILENT_EXIT_TIMEOUT: invalid integer";
+            return -1;
+        }
+        if (iv < 0) {
+            if (err_msg)
+                *err_msg = "AWG_REMOTE_SILENT_EXIT_TIMEOUT: must be >= 0";
+            return -1;
+        }
+        cfg->remote_silent_exit_timeout = iv;
     }
 
     cfg->connect_retries = 0;
@@ -348,6 +366,28 @@ int load_operational_env(awg_config_t *cfg, const char **err_msg) {
     }
 
     return 0;
+}
+
+int compute_remote_silent_timeout(int explicit_secs, int have_keepalive,
+                                  int keepalive, int exit_secs) {
+    if (explicit_secs > 0)
+        return explicit_secs;
+    int ka = (have_keepalive && keepalive > 0) ? keepalive : 15;
+    int t = ka * 4;
+    /* Lower bound avoids reconnect flapping with a tiny keepalive. */
+    if (t < 30)
+        t = 30;
+    /* Keep the reconnect cadence below the exit guard so the proxy retries
+     * reconnecting (~2+ times) before giving up and exiting. No upper bound
+     * when the exit guard is disabled. */
+    if (exit_secs > 0) {
+        int cap = exit_secs / 2;
+        if (cap < 30)
+            cap = 30;
+        if (t > cap)
+            t = cap;
+    }
+    return t;
 }
 
 int load_network_perf_env(awg_config_t *cfg, const char **err_msg) {

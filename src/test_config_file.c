@@ -62,6 +62,7 @@ static void test_parse_valid_full(void) {
         "[Peer]\n"
         "PublicKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n"
         "Endpoint = vpn.example.com:443\n"
+        "PersistentKeepalive = 25\n"
         "\n"
         "[Peer]\n"
         "PublicKey = AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n";
@@ -74,6 +75,7 @@ static void test_parse_valid_full(void) {
     ASSERT(out.have_dns);
     ASSERT(out.have_server_pub);
     ASSERT(out.have_endpoint);
+    ASSERT(out.have_keepalive && out.keepalive == 25);
     ASSERT_EQ(out.peer_pub_count, 2);
 
     ASSERT(strcmp(out.listen, "0.0.0.0:51820") == 0);
@@ -225,6 +227,39 @@ static void test_multiple_peers_without_endpoint(void) {
     }
 }
 
+static void test_persistent_keepalive(void) {
+    /* Only the first peer's keepalive is captured; absent -> have=0 */
+    const char *cfg_text =
+        "[Interface]\n"
+        "PrivateKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n"
+        "\n"
+        "[Peer]\n"
+        "PublicKey = AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n"
+        "Endpoint = 10.0.0.1:51820\n"
+        "PersistentKeepalive = 15\n"
+        "\n"
+        "[Peer]\n"
+        "PublicKey = AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n"
+        "PersistentKeepalive = 99\n";
+
+    awg_file_config_t out;
+    ASSERT_EQ(parse_from_text(cfg_text, &out), 0);
+    ASSERT(out.have_keepalive && out.keepalive == 15);
+
+    /* No PersistentKeepalive anywhere -> not set */
+    const char *cfg_none =
+        "[Interface]\n"
+        "PrivateKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n"
+        "\n"
+        "[Peer]\n"
+        "PublicKey = AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n"
+        "Endpoint = 10.0.0.1:51820\n";
+
+    awg_file_config_t out2;
+    ASSERT_EQ(parse_from_text(cfg_none, &out2), 0);
+    ASSERT(!out2.have_keepalive);
+}
+
 int main(void) {
     fprintf(stderr, "=== config file tests ===\n");
     RUN_TEST(parse_valid_full);
@@ -235,5 +270,6 @@ int main(void) {
     RUN_TEST(invalid_hrange);
     RUN_TEST(invalid_cps_template);
     RUN_TEST(multiple_peers_without_endpoint);
+    RUN_TEST(persistent_keepalive);
     TEST_MAIN_END();
 }

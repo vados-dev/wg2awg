@@ -55,6 +55,10 @@ typedef struct {
     int have_endpoint;
     char endpoint[256];
 
+    /* First [Peer] PersistentKeepalive (seconds) -> remote-silent default */
+    int have_keepalive;
+    int keepalive;
+
     /*
      * All [Peer].PublicKey entries (including the first).
      * Used in server mode where each peer is a WG client.

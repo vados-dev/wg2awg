@@ -62,16 +62,27 @@ int proxy_control_init(proxy_t *p) {
     return 0;
 }
 
-int proxy_control_loop(proxy_t *p, int timeout_secs, int silent_secs) {
+int proxy_control_loop(proxy_t *p, int timeout_secs, int silent_secs,
+                       int silent_exit_secs) {
     int checks_needed = timeout_secs / 5;
     if (checks_needed < 1)
         checks_needed = 1;
     int silent_checks_needed = silent_secs / 5;
     if (silent_checks_needed < 1)
         silent_checks_needed = 1;
+    int exit_checks_needed = silent_exit_secs / 5;
+    if (silent_exit_secs > 0 && exit_checks_needed < 1)
+        exit_checks_needed = 1;
+    /* Warn at half the reconnect timeout (~keepalive*2 by default), scaling
+     * with the keepalive-derived silent timeout instead of a fixed interval. */
+    int warn_checks = silent_checks_needed / 2;
+    if (warn_checks < 1)
+        warn_checks = 1;
 
     int inactive_count = 0;
     int remote_silent_count = 0;
+    int remote_silent_total = 0;
+    int silence_warned = 0;
 
     int epfd = epoll_create1(EPOLL_CLOEXEC);
     if (epfd < 0) {
@@ -117,6 +128,29 @@ int proxy_control_loop(proxy_t *p, int timeout_secs, int silent_secs) {
                     inactive_count = 0;
                     if (!had_remote_rx) {
                         remote_silent_count++;
+                        remote_silent_total++;
+                        if (!silence_warned &&
+                            remote_silent_total >= warn_checks) {
+                            if (g_log_level >= LOG_INFO) {
+                                const char *parts[] = {
+                                    "remote silent while client active, "
+                                    "will reconnect"};
+                                log_msgn("WARN: ", parts, 1);
+                            }
+                            silence_warned = 1;
+                        }
+                        if (silent_exit_secs > 0 &&
+                            remote_silent_total >= exit_checks_needed) {
+                            char nb[12];
+                            const char *parts[] = {
+                                "remote silent for ",
+                                u32_to_str(nb,
+                                           (unsigned)remote_silent_total * 5),
+                                "s while client active, exiting"};
+                            if (g_log_level >= LOG_ERROR)
+                                log_msgn("ERROR: ", parts, 3);
+                            _exit(1);
+                        }
                         if (remote_silent_count >= silent_checks_needed) {
                             log_info("remote silent (DNS re-resolve), "
                                      "triggering reconnect");
@@ -131,9 +165,13 @@ int proxy_control_loop(proxy_t *p, int timeout_secs, int silent_secs) {
                         }
                     } else {
                         remote_silent_count = 0;
+                        remote_silent_total = 0;
+                        silence_warned = 0;
                     }
                 } else {
                     remote_silent_count = 0;
+                    remote_silent_total = 0;
+                    silence_warned = 0;
                     inactive_count++;
                     if (inactive_count >= checks_needed) {
                         log_info("remote timeout, triggering reconnect");

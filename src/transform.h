@@ -93,8 +93,12 @@ typedef struct {
 
     int timeout;               /* inactivity reconnect, seconds, default 180 */
     int remote_silent_timeout; /* client-active-but-remote-silent reconnect,
-                                  seconds, default 300 */
-    int connect_retries;       /* max initial connect attempts, 0 = unlimited */
+                                  seconds, 0 = auto (keepalive*4, min 30,
+                                  capped at exit_timeout/2) */
+    int remote_silent_exit_timeout; /* continuous one-sided silence before
+                                       _exit(1), seconds, 0 = off, default 900
+                                     */
+    int connect_retries; /* max initial connect attempts, 0 = unlimited */
     int dns_resolve_failure_timeout; /* consecutive DNS resolve failure
                                         timeout, seconds, default 720 */
     int log_level;

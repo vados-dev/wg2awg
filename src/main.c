@@ -110,7 +110,13 @@ static void print_help(void) {
         "    AWG_TIMEOUT               Inactivity reconnect timeout, seconds "
         "(default: 180)\n"
         "    AWG_REMOTE_SILENT_TIMEOUT Remote-silent reconnect timeout, "
-        "seconds (default: 300)\n"
+        "seconds (default: auto = keepalive*4, min 30, capped at "
+        "EXIT_TIMEOUT/2)"
+        "\n"
+        "    AWG_REMOTE_SILENT_EXIT_TIMEOUT\n"
+        "                              Exit after remote silent (client "
+        "active) "
+        "for N seconds (default: 900, 0 = disabled)\n"
         "    AWG_CONNECT_RETRIES       Initial connect attempts, 0 = unlimited "
         "(default: 0)\n"
         "    AWG_DNS_RESOLVE_FAILURE_TIMEOUT\n"
@@ -454,6 +460,13 @@ int main(int argc, char *argv[]) {
         if (load_operational_env(cfg, &op_err) < 0)
             fatal(op_err ? op_err : "invalid operational env");
     }
+
+    /* Resolve auto remote-silent timeout from PersistentKeepalive (env wins) */
+    cfg->remote_silent_timeout = compute_remote_silent_timeout(
+        cfg->remote_silent_timeout,
+        cfg_file_loaded && g_file_cfg.have_keepalive,
+        cfg_file_loaded ? g_file_cfg.keepalive : 0,
+        cfg->remote_silent_exit_timeout);
 
     {
         const char *np_err = NULL;
