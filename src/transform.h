@@ -96,14 +96,16 @@ typedef struct {
                                   seconds, 0 = auto (keepalive*4, min 30,
                                   capped at exit_timeout/2) */
     int remote_silent_exit_timeout; /* continuous one-sided silence before
-                                       _exit(1), seconds, 0 = off, default 900
+                                       _exit(1), seconds, 0 = off, default 600
                                      */
     int connect_retries; /* max initial connect attempts, 0 = unlimited */
     int dns_resolve_failure_timeout; /* consecutive DNS resolve failure
                                         timeout, seconds, default 720 */
     int log_level;
-    int socket_buf; /* socket buffer size */
-    int src_port;   /* 0 = auto */
+    int socket_buf;     /* socket buffer size */
+    int src_port;       /* 0 = auto */
+    int src_port_drift; /* 1 = rotate remote src port on recovery reconnect to
+                           bust stale NAT/conntrack (auto src-port mode only) */
 
     int cpu_c2s;   /* CPU affinity for c2s thread (-1 = auto) */
     int cpu_s2c;   /* CPU affinity for s2c thread (-1 = auto) */

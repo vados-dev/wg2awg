@@ -301,6 +301,15 @@ The config file has higher priority than environment variables.
   Numeric value binds a fixed source port.
   `auto` is dynamic in `client`: proxy tracks client source port and reconnects
   remote socket when client port changes, preserving NAT symmetry.
+* `AWG_SRC_PORT_DRIFT` (`0`/`1`, default `1`)
+  On a recovery reconnect (one-sided silence or full inactivity),
+  bind a fresh ephemeral source port instead of reusing the previous one.
+  This changes the outbound 5-tuple so a stale NAT/conntrack mapping left over
+  after a WAN/PPPoE reconnect is bypassed instead of reusing the dead path -
+  without restarting the process.
+  Only applies in `auto` src-port mode;
+  a pinned `AWG_SRC_PORT` is always honoured.
+  Set `0` to keep the source port stable across reconnects.
 
 #### Identity, Keys, and Peer Resolution
 
@@ -387,26 +396,19 @@ of traffic obfuscation.
   If neither direction sees traffic for this interval, proxy reconnects remote
   socket (close + resolve + connect).
 * `AWG_REMOTE_SILENT_TIMEOUT` (seconds, default `auto`)
-  One-sided silence reconnect timeout.
-  If local client keeps sending but remote side stays silent for this interval,
-  proxy forces reconnect (close + resolve + connect).
-  This recovers a dead remote path, e.g. after a WAN/PPPoE reconnect
-  changes the public IP and the old NAT mapping is gone.
-  `auto` derives the value from the peer `PersistentKeepalive` as
-  `keepalive * 4`, with a lower bound of `30`
-  (fallback `keepalive = 15`, i.e. `60`, when the config has no keepalive).
-  When `AWG_REMOTE_SILENT_EXIT_TIMEOUT` is enabled, the derived value is also
-  capped at half of it, so reconnect is attempted a few times before the exit
-  guard fires.
-  Set an explicit integer to override exactly (no bounds applied).
-  A `WARN` line is logged once silence reaches half of this timeout
-  (`keepalive * 2` by default),
-  so the loss is visible in logs before the reconnect fires.
-* `AWG_REMOTE_SILENT_EXIT_TIMEOUT` (seconds, default `900`)
+  One-sided silence timeout: if the local client keeps sending but the remote
+  stays silent for this long, the proxy reconnects the remote socket
+  (rotating the source port, see `AWG_SRC_PORT_DRIFT`) to recover a dead path.
+  `auto` = `PersistentKeepalive * 4` from the config (fallback `60`),
+  bounded to `30 .. AWG_REMOTE_SILENT_EXIT_TIMEOUT/2`.  
+  Set a number to use it as-is.
+  A `WARN` is logged at half this timeout, before the reconnect.
+* `AWG_REMOTE_SILENT_EXIT_TIMEOUT` (seconds, default `600`)
   One-sided silence exit guard.
   If the client keeps sending but the remote stays silent continuously
-  for this long despite reconnect attempts, process exits non-zero
-  so the container runtime/systemd can restart it. `0` disables this guard.
+  for this long despite reconnect attempts,
+  the process exits non-zero so the container runtime/systemd can restart it.
+  `0` disables this guard.
 * `AWG_CONNECT_RETRIES` (default `0`)
   Startup-only connect retry count.
   `0` means unlimited retries before daemon enters steady state.

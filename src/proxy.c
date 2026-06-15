@@ -234,12 +234,18 @@ __attribute__((hot)) static void *s2c_thread(void *arg) {
                 if (n == 0 ||
                     (saved_errno != EAGAIN && saved_errno != EWOULDBLOCK &&
                      saved_errno != EINTR)) {
+                    /* Only the first observer logs; a reconnect already
+                     * requested by the control loop is expected, not an error
+                     */
                     if (!atomic_load_explicit(&p->stopped,
-                                              memory_order_relaxed)) {
-                        log_info3("remote read error (", strerror(saved_errno),
-                                  "), will reconnect");
-                        atomic_store_explicit(&p->reconnect_needed, 1,
-                                              memory_order_relaxed);
+                                              memory_order_relaxed) &&
+                        !atomic_exchange_explicit(&p->reconnect_needed, 1,
+                                                  memory_order_relaxed)) {
+                        if (n == 0)
+                            log_info("s2c: remote socket closed, reconnecting");
+                        else
+                            log_info3("s2c: remote read error (",
+                                      strerror(saved_errno), "), reconnecting");
                     }
                 }
                 continue;
@@ -300,12 +306,18 @@ __attribute__((hot)) static void *s2c_thread(void *arg) {
                 if (nrecv == 0 ||
                     (saved_errno != EAGAIN && saved_errno != EWOULDBLOCK &&
                      saved_errno != EINTR)) {
+                    /* Only the first observer logs; a reconnect already
+                     * requested by the control loop is expected, not an error
+                     */
                     if (!atomic_load_explicit(&p->stopped,
-                                              memory_order_relaxed)) {
-                        log_info3("remote read error (", strerror(saved_errno),
-                                  "), will reconnect");
-                        atomic_store_explicit(&p->reconnect_needed, 1,
-                                              memory_order_relaxed);
+                                              memory_order_relaxed) &&
+                        !atomic_exchange_explicit(&p->reconnect_needed, 1,
+                                                  memory_order_relaxed)) {
+                        if (nrecv == 0)
+                            log_info("s2c: remote socket closed, reconnecting");
+                        else
+                            log_info3("s2c: remote read error (",
+                                      strerror(saved_errno), "), reconnecting");
                     }
                 }
                 continue;

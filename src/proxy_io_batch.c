@@ -117,7 +117,10 @@ void proxy_io_send_batch_gso(proxy_t *p, int fd, struct mmsghdr *msgs,
     while (sent < nsend) {
         int r = sendmmsg(fd, msgs + sent, nsend - sent, MSG_NOSIGNAL);
         if (r <= 0) {
-            log_debug2("sendmmsg failed: ", strerror(errno));
+            /* EPIPE/EBADF/ENOTCONN are expected while a reconnect tears down
+             * the remote socket, not real send failures. */
+            if (errno != EPIPE && errno != EBADF && errno != ENOTCONN)
+                log_debug2("sendmmsg failed: ", strerror(errno));
             break;
         }
         sent += r;

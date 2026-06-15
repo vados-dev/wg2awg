@@ -35,6 +35,7 @@ typedef struct {
     _Atomic int last_active;      /* 4B */
     _Atomic int last_remote_rx;   /* 4B - set when data received from remote */
     _Atomic int reconnect_needed; /* 4B */
+    _Atomic int reconnect_drift;  /* 4B - bind a fresh src port on next dial */
     /* First-event flags (one per connection - touched once after
      * start/reconnect) */
     _Atomic uint8_t fe_init_seen;     /* WG handshake init seen from client */

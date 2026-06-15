@@ -6,6 +6,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog][], and this project adheres to
 [Semantic Versioning][].
 
+## [0.4.0] - 2026-06-15
+
+### Added
+
+* `AWG_SRC_PORT_DRIFT` (default `1`): on a recovery reconnect,
+  rotate the remote source port so a stale NAT mapping left after
+  a WAN/PPPoE reconnect is recovered in place, without restarting the container.
+  Set `0` to disable.
+
+### Changed
+
+* Lower `AWG_REMOTE_SILENT_EXIT_TIMEOUT` default from `900` to `600` seconds.
+
+### Fixed
+
+* Reliably recover a wedged connection after a WAN/PPPoE reconnect.
+* One-sided silence timeout no longer resets on brief client gaps,
+  so the exit guard fires as configured.
+* Less noisy logs during reconnect.
+
+[0.4.0]: https://github.com/WoozyMasta/wg2awg/compare/0.3.0...0.4.0
+
 ## [0.3.0] - 2026-06-15
 
 ### Added

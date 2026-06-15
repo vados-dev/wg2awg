@@ -108,9 +108,21 @@ int proxy_dial_remote(proxy_t *p, int blocking) {
     if (fd < 0)
         return -1;
 
-    if (p->local_port > 0) {
+    /* On a recovery reconnect we deliberately drop the preferred source port
+     * and let the kernel pick a fresh one.
+     * This changes the 5-tuple so a stale NAT/conntrack mapping
+     * (e.g. left over after a WAN/PPPoE reconnect) is bypassed
+     * instead of reusing the dead path.
+     * Only in auto src-port mode; a pinned AWG_SRC_PORT is always honoured. */
+    int bind_port = p->local_port;
+    if (p->auto_src_port &&
+        atomic_load_explicit(&p->reconnect_drift, memory_order_relaxed)) {
+        bind_port = 0;
+        log_info("src port: rotating (fresh ephemeral) to reset path state");
+    }
+    if (bind_port > 0) {
         if (net_sock_bind_any_port(fd, p->remote_addr.ss_family,
-                                   (uint16_t)p->local_port) < 0) {
+                                   (uint16_t)bind_port) < 0) {
             log_error2("bind failed: ", strerror(errno));
             close(fd);
             return -1;

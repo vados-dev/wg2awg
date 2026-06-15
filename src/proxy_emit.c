@@ -20,9 +20,16 @@ static int junk_layout_sizes(const awg_config_t *cfg, size_t *junk_bytes,
     return 0;
 }
 
+/* EPIPE/EBADF on the remote socket are expected while a reconnect is tearing it
+ * down (control loop shutdown() then close()); they are not real send errors.
+ */
+static int send_err_is_reconnect_noise(int err) {
+    return err == EPIPE || err == EBADF || err == ENOTCONN;
+}
+
 int proxy_emit_send_packet(int fd, const void *data, int len) {
     int r = (int)send(fd, data, len, MSG_DONTWAIT | MSG_NOSIGNAL);
-    if (r < 0)
+    if (r < 0 && !send_err_is_reconnect_noise(errno))
         log_debug2("send_packet failed: ", strerror(errno));
     return r;
 }
@@ -32,7 +39,7 @@ int proxy_emit_send_packet_to(int fd, const void *data, int len,
                               socklen_t addr_len) {
     int r = (int)sendto(fd, data, len, MSG_DONTWAIT | MSG_NOSIGNAL,
                         (const struct sockaddr *)addr, addr_len);
-    if (r < 0)
+    if (r < 0 && !send_err_is_reconnect_noise(errno))
         log_debug2("send_packet_to failed: ", strerror(errno));
     return r;
 }

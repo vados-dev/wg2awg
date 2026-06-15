@@ -232,7 +232,7 @@ static void test_load_operational_env_defaults(void) {
     ASSERT_EQ(load_operational_env(&cfg, &err), 0);
     ASSERT_EQ(cfg.timeout, 180);
     ASSERT_EQ(cfg.remote_silent_timeout, 0); /* 0 = auto (derived later) */
-    ASSERT_EQ(cfg.remote_silent_exit_timeout, 900);
+    ASSERT_EQ(cfg.remote_silent_exit_timeout, 600);
     ASSERT_EQ(cfg.connect_retries, 0);
     ASSERT_EQ(cfg.dns_resolve_failure_timeout, 12 * 60);
     ASSERT_EQ(cfg.socket_buf, 16 * 1024 * 1024);
@@ -310,6 +310,7 @@ static void test_load_operational_env_invalid(void) {
 
 static void unset_network_perf_env(void) {
     unsetenv("AWG_SRC_PORT");
+    unsetenv("AWG_SRC_PORT_DRIFT");
     unsetenv("AWG_CPU_C2S");
     unsetenv("AWG_CPU_S2C");
     unsetenv("AWG_BUSY_POLL");
@@ -323,6 +324,7 @@ static void test_load_network_perf_env_defaults(void) {
     unset_network_perf_env();
     ASSERT_EQ(load_network_perf_env(&cfg, &err), 0);
     ASSERT_EQ(cfg.src_port, 0);
+    ASSERT_EQ(cfg.src_port_drift, 1);
     ASSERT_EQ(cfg.cpu_c2s, -1);
     ASSERT_EQ(cfg.cpu_s2c, -1);
     ASSERT_EQ(cfg.busy_poll, 0);
@@ -334,12 +336,14 @@ static void test_load_network_perf_env_valid(void) {
     const char *err = NULL;
     memset(&cfg, 0, sizeof(cfg));
     ASSERT_EQ(setenv("AWG_SRC_PORT", "51820", 1), 0);
+    ASSERT_EQ(setenv("AWG_SRC_PORT_DRIFT", "0", 1), 0);
     ASSERT_EQ(setenv("AWG_CPU_C2S", "1", 1), 0);
     ASSERT_EQ(setenv("AWG_CPU_S2C", "2", 1), 0);
     ASSERT_EQ(setenv("AWG_BUSY_POLL", "50", 1), 0);
     ASSERT_EQ(setenv("AWG_NO_GRO", "1", 1), 0);
     ASSERT_EQ(load_network_perf_env(&cfg, &err), 0);
     ASSERT_EQ(cfg.src_port, 51820);
+    ASSERT_EQ(cfg.src_port_drift, 0);
     ASSERT_EQ(cfg.cpu_c2s, 1);
     ASSERT_EQ(cfg.cpu_s2c, 2);
     ASSERT_EQ(cfg.busy_poll, 50);

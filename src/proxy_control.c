@@ -62,6 +62,26 @@ int proxy_control_init(proxy_t *p) {
     return 0;
 }
 
+/* Treat the client as "actively trying" until it has been quiet
+ * for this many timer ticks (~60s).
+ * WireGuard handshake retries are jittery, so a few empty
+ * ticks must not reset the one-sided-silence accounting. */
+#define CLIENT_ACTIVE_GRACE_CHECKS 12
+
+/* Trigger a recovery reconnect of the remote socket.
+ * In auto src-port mode with drift enabled,
+ * also request a fresh source port so the new dial bypasses
+ * a stale NAT/conntrack mapping instead of reusing the dead 5-tuple. */
+static void trigger_recovery_reconnect(proxy_t *p) {
+    int rfd = atomic_load_explicit(&p->remote_fd, memory_order_acquire);
+    if (rfd < 0)
+        return;
+    if (p->cfg->src_port_drift && p->auto_src_port)
+        atomic_store_explicit(&p->reconnect_drift, 1, memory_order_relaxed);
+    atomic_store_explicit(&p->reconnect_needed, 1, memory_order_relaxed);
+    shutdown(rfd, SHUT_RDWR);
+}
+
 int proxy_control_loop(proxy_t *p, int timeout_secs, int silent_secs,
                        int silent_exit_secs) {
     int checks_needed = timeout_secs / 5;
@@ -83,6 +103,7 @@ int proxy_control_loop(proxy_t *p, int timeout_secs, int silent_secs,
     int remote_silent_count = 0;
     int remote_silent_total = 0;
     int silence_warned = 0;
+    int client_idle_ticks = 0;
 
     int epfd = epoll_create1(EPOLL_CLOEXEC);
     if (epfd < 0) {
@@ -124,64 +145,69 @@ int proxy_control_loop(proxy_t *p, int timeout_secs, int silent_secs,
                     &p->last_active, 0, memory_order_relaxed);
                 int had_remote_rx = atomic_exchange_explicit(
                     &p->last_remote_rx, 0, memory_order_relaxed);
-                if (had_activity) {
+
+                if (had_remote_rx) {
+                    /* Real traffic from remote: healthy, reset all accounting
+                     * and drop back to the preferred source port. */
                     inactive_count = 0;
-                    if (!had_remote_rx) {
-                        remote_silent_count++;
-                        remote_silent_total++;
-                        if (!silence_warned &&
-                            remote_silent_total >= warn_checks) {
-                            if (g_log_level >= LOG_INFO) {
-                                const char *parts[] = {
-                                    "remote silent while client active, "
-                                    "will reconnect"};
-                                log_msgn("WARN: ", parts, 1);
-                            }
-                            silence_warned = 1;
-                        }
-                        if (silent_exit_secs > 0 &&
-                            remote_silent_total >= exit_checks_needed) {
-                            char nb[12];
+                    remote_silent_count = 0;
+                    remote_silent_total = 0;
+                    silence_warned = 0;
+                    client_idle_ticks = 0;
+                    atomic_store_explicit(&p->reconnect_drift, 0,
+                                          memory_order_relaxed);
+                    continue;
+                }
+
+                /* No remote traffic this tick. */
+                if (had_activity)
+                    client_idle_ticks = 0;
+                else
+                    client_idle_ticks++;
+
+                if (client_idle_ticks <= CLIENT_ACTIVE_GRACE_CHECKS) {
+                    /* Client is (recently) sending but remote stays silent:
+                     * broken path. Accumulate until recovery, not per-tick, so
+                     * jittery client gaps do not reset the counters. */
+                    inactive_count = 0;
+                    remote_silent_count++;
+                    remote_silent_total++;
+
+                    if (!silence_warned && remote_silent_total >= warn_checks) {
+                        if (g_log_level >= LOG_INFO) {
                             const char *parts[] = {
-                                "remote silent for ",
-                                u32_to_str(nb,
-                                           (unsigned)remote_silent_total * 5),
-                                "s while client active, exiting"};
-                            if (g_log_level >= LOG_ERROR)
-                                log_msgn("ERROR: ", parts, 3);
-                            _exit(1);
+                                "remote silent while client active, "
+                                "will reconnect"};
+                            log_msgn("WARN: ", parts, 1);
                         }
-                        if (remote_silent_count >= silent_checks_needed) {
-                            log_info("remote silent (DNS re-resolve), "
-                                     "triggering reconnect");
-                            int rfd2 = atomic_load_explicit(
-                                &p->remote_fd, memory_order_acquire);
-                            if (rfd2 >= 0) {
-                                atomic_store_explicit(&p->reconnect_needed, 1,
-                                                      memory_order_relaxed);
-                                shutdown(rfd2, SHUT_RDWR);
-                            }
-                            remote_silent_count = 0;
-                        }
-                    } else {
+                        silence_warned = 1;
+                    }
+                    if (silent_exit_secs > 0 &&
+                        remote_silent_total >= exit_checks_needed) {
+                        char nb[12];
+                        const char *parts[] = {
+                            "remote silent for ",
+                            u32_to_str(nb, (unsigned)remote_silent_total * 5),
+                            "s while client active, exiting"};
+                        if (g_log_level >= LOG_ERROR)
+                            log_msgn("ERROR: ", parts, 3);
+                        _exit(1);
+                    }
+                    if (remote_silent_count >= silent_checks_needed) {
+                        log_info("remote silent, triggering reconnect");
+                        trigger_recovery_reconnect(p);
                         remote_silent_count = 0;
-                        remote_silent_total = 0;
-                        silence_warned = 0;
                     }
                 } else {
+                    /* Genuinely idle: client quiet too, not a broken-path
+                     * signal. Only the full-inactivity timeout applies. */
                     remote_silent_count = 0;
                     remote_silent_total = 0;
                     silence_warned = 0;
                     inactive_count++;
                     if (inactive_count >= checks_needed) {
                         log_info("remote timeout, triggering reconnect");
-                        int rfd2 = atomic_load_explicit(&p->remote_fd,
-                                                        memory_order_acquire);
-                        if (rfd2 >= 0) {
-                            atomic_store_explicit(&p->reconnect_needed, 1,
-                                                  memory_order_relaxed);
-                            shutdown(rfd2, SHUT_RDWR);
-                        }
+                        trigger_recovery_reconnect(p);
                         inactive_count = 0;
                     }
                 }

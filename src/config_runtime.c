@@ -306,7 +306,7 @@ int load_operational_env(awg_config_t *cfg, const char **err_msg) {
         cfg->remote_silent_timeout = iv;
     }
 
-    cfg->remote_silent_exit_timeout = 900;
+    cfg->remote_silent_exit_timeout = 600;
     v = getenv("AWG_REMOTE_SILENT_EXIT_TIMEOUT");
     if (v && v[0]) {
         if (parse_int_strict(v, &iv) < 0) {
@@ -405,6 +405,17 @@ int load_network_perf_env(awg_config_t *cfg, const char **err_msg) {
             return -1;
         }
         cfg->src_port = iv;
+    }
+
+    cfg->src_port_drift = 1;
+    v = getenv("AWG_SRC_PORT_DRIFT");
+    if (v && v[0]) {
+        if (parse_int_strict(v, &iv) < 0) {
+            if (err_msg)
+                *err_msg = "AWG_SRC_PORT_DRIFT: invalid integer";
+            return -1;
+        }
+        cfg->src_port_drift = iv ? 1 : 0;
     }
 
     cfg->cpu_c2s = -1;
