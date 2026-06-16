@@ -3,10 +3,18 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog][], and this project adheres to
-[Semantic Versioning][].
+The format is based on [Keep a Changelog][],
+and this project adheres to [Semantic Versioning][].
 
-## [0.4.0] - 2026-06-15
+<!--
+## Unreleased
+
+### Added
+### Changed
+### Removed
+-->
+
+## [0.4.0][] - 2026-06-15
 
 ### Added
 
@@ -28,7 +36,7 @@ The format is based on [Keep a Changelog][], and this project adheres to
 
 [0.4.0]: https://github.com/WoozyMasta/wg2awg/compare/0.3.0...0.4.0
 
-## [0.3.0] - 2026-06-15
+## [0.3.0][] - 2026-06-15
 
 ### Added
 
@@ -49,7 +57,7 @@ The format is based on [Keep a Changelog][], and this project adheres to
 
 [0.3.0]: https://github.com/WoozyMasta/wg2awg/compare/0.2.1...0.3.0
 
-## [0.2.1] - 2026-06-11
+## [0.2.1][] - 2026-06-11
 
 ### Added
 
@@ -57,7 +65,7 @@ The format is based on [Keep a Changelog][], and this project adheres to
 
 [0.2.1]: https://github.com/WoozyMasta/wg2awg/compare/0.2.0...0.2.1
 
-## [0.2.0] - 2026-06-08
+## [0.2.0][] - 2026-06-08
 
 ### Added
 
@@ -70,7 +78,7 @@ The format is based on [Keep a Changelog][], and this project adheres to
 
 [0.2.0]: https://github.com/WoozyMasta/wg2awg/compare/0.1.0...0.2.0
 
-## [0.1.0] - 2026-05-24
+## [0.1.0][] - 2026-05-24
 
 ### Added
 
