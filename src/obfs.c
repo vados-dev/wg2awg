@@ -143,8 +143,9 @@ uint8_t *obfs_wrap(obfs_session_t *s, uint8_t *in, int in_len, int *out_len) {
     if (s->profile == AWG_OBFS_STUN_ICE) {
         int pad = (int)(s->tx_seq & 3u);
         int mx = marker_extra_len(s);
-        int body_len = in_len + pad + mx;
-        int total = 20 + body_len;
+        /* MessageLength per RFC 5389 excludes padding bytes */
+        int body_len = in_len + mx;
+        int total = 20 + body_len + pad;
         if (total > OBFS_MAX_PACKET)
             return NULL;
 
@@ -369,9 +370,8 @@ uint8_t *obfs_wrap(obfs_session_t *s, uint8_t *in, int in_len, int *out_len) {
         int mx = marker_extra_len(s);
         int label_len = 6 + (int)(s->tx_seq % 6u);
         int qname_len = 1 + label_len + 1 + 3 + 1;
-        int tail_len = (int)(s->tx_seq % 4u);
         int hdr_len = 12 + qname_len + 4;
-        int total = hdr_len + mx + in_len + tail_len;
+        int total = hdr_len + mx + in_len;
         uint16_t id = (uint16_t)(s->tx_seq & 0xFFFFu);
         if (total > OBFS_MAX_PACKET)
             return NULL;
@@ -394,8 +394,6 @@ uint8_t *obfs_wrap(obfs_session_t *s, uint8_t *in, int in_len, int *out_len) {
         be16_write(obfs_buf + 20 + label_len, 1);
         marker_write_if_needed(s, obfs_buf + hdr_len);
         memcpy(obfs_buf + hdr_len + mx, in, (size_t)in_len);
-        for (int i = 0; i < tail_len; i++)
-            obfs_buf[hdr_len + mx + in_len + i] = 0;
         *out_len = total;
         s->tx_seq++;
         return obfs_buf;

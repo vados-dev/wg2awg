@@ -88,7 +88,7 @@ static void test_stun_roundtrip(void) {
            wrapped[7] == 0x42);
     uint8_t *plain = obfs_unwrap(&rx, wrapped, out_len, &un_len);
     ASSERT(plain != NULL);
-    ASSERT(un_len >= 50);
+    ASSERT_EQ(un_len, 50);
     ASSERT_MEM_EQ(plain, pkt, 50);
 }
 
