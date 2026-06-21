@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning][].
   probe CLI with `-S` slot override.
 * Add wg2awg-only `[Interface].ObfsProfile` config support.
 
+### Fixed
+
+* `obfs stun_ice`: `MessageLength` in the STUN header incorrectly included
+  padding bytes, causing the unwrapped payload to be `in_len + pad` bytes
+  instead of `in_len`; WireGuard rejected the oversized handshake.
+* `obfs dns_like`: extra trailing bytes were appended to the wrapped packet but
+  not tracked, so unwrap returned a payload that was too long; WireGuard
+  rejected the oversized handshake.
+
 ## [0.4.0][] - 2026-06-15
 
 ### Added
