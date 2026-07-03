@@ -109,8 +109,8 @@ jq -cn \
 
 printf '{"imageLayoutVersion":"1.0.0"}' > "$work_dir/oci/oci-layout"
 
-tar czf "$BUILD_DIR/$IMAGE_NAME-$SUFFIX-oci.tar.gz" -C "$work_dir/oci" .
-echo "Created $BUILD_DIR/$IMAGE_NAME-$SUFFIX-oci.tar.gz (OCI)"
+tar cvf "$BUILD_DIR/$IMAGE_NAME-$SUFFIX-oci.tar" -C "$work_dir/oci" .
+echo "Created $BUILD_DIR/$IMAGE_NAME-$SUFFIX-oci.tar (OCI)"
 
 # Classic Docker format
 mkdir -p "$work_dir/docker/$layer_sha"
