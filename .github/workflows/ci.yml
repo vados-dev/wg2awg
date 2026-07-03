@@ -3,8 +3,10 @@ name: CI
 on:
    workflow_dispatch: 
 #  push:
+#    branches: [main]
+#    tags: ["v*.*.*"]
 #    paths-ignore:
-#      - '.github/workflows/ci.yml'
+#      - '.github/workflows/build.yml'
 #      - '**/*.md'
 #      - 'assets/**'
 #      - 'LICENSE'
